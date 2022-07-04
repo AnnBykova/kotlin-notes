@@ -30,41 +30,29 @@ class NotesService () : Service <Notes> {
         return counterNotesId
     }
 
-    fun add(nid: Int, text: String, title: String, ownerId: Int): Int {
+    fun add(nid: Int,  title: String,text: String, ownerId: Int): Int {
         val nid: Int = setId()
         notes.put(nid, Notes(nid, title, text, ownerId))
         return nid
     }
 
     override fun delete(id: Int): Boolean {
-        if (notes.containsKey(id)) {
-            notes[id] = notes.get(id)!!.copy(deleted = true)
-            return true
-        }
-        throw NotesNotFoundException("заметка с id=$id не найдена")
-        return false
+        val note = notes[id]?: throw NotesNotFoundException("заметка с id=$id не найдена")
+        notes[id]=note.copy(deleted = true)
+        return true
     }
 
     override fun getById(id: Int): Notes {
-        if (notes.containsKey(id)) {
-            return notes[id]!!
-        }
-        throw NotesNotFoundException("заметка с id=$id не найдена")
+        return notes[id]?: throw NotesNotFoundException("заметка с id=$id не найдена")
     }
 
     override fun edit(newNote: Notes): Boolean {
-
-        if (notes.containsKey(newNote.nid)) {
-            val id = newNote.nid
-            if (notes.get(id)!!.deleted == false) {
-                notes[newNote.nid] = notes.get(newNote.nid)!!.copy(text = newNote.text, title = newNote.title)
-                return true
-            }
-            throw NoteIsDeleted("заметка удалена")
-            return false
+        val note = notes[newNote.nid]?: throw NotesNotFoundException("заметка с id=$newNote.nid не найдена")
+        if (!note.deleted) {
+            notes[newNote.nid] = note.copy(text = newNote.text, title = newNote.title)
+            return true
         }
-        throw NotesNotFoundException("заметка с id=$newNote.nid не найдена")
-        return false
+           throw NoteIsDeleted("заметка удалена")
     }
 
     fun get(ownerId: Int): List<Notes> {
@@ -82,68 +70,75 @@ class NotesService () : Service <Notes> {
         return counterCommentsId
     }
 
-    fun createComment(cid: Int, noteId: Int, text: String): Int {
-        if (notes[noteId]?.deleted== false) {
+    fun createComment( noteId: Int, text: String): Int {
+        val note = notes[noteId]?: throw NotesNotFoundException("заметка с id=$noteId не найдена")
+        if (!note.deleted) {
                 val cid: Int = setCommentsId()
-                notes[noteId]?.comments?.add(Comments(cid, text))
+                note.comments.add(Comments(cid, text))
+                notes[noteId] = note
                 return cid
             }
         throw NoteIsDeleted ("заметка удалена")
         }
 
     fun deleteComment (cid: Int, noteId: Int): Boolean{
-        val note = notes[noteId]
-        val commentsOfNote = note!!.comments
-        if (note!!.deleted== false) {
+        val note = notes[noteId]?:throw NotesNotFoundException("заметка с id=$noteId не найдена")
+        var result = false
+        val commentsOfNote = note.comments
+        if (!note.deleted) {
             for ((index,value) in commentsOfNote.withIndex()) {
                if (value.cid == cid) {
                commentsOfNote[index]=value.copy(deleted=true)
+                   result= true
                    break
             }
-            return true}
+            }
+            return result
         }
         throw NoteIsDeleted ("заметка удалена")
     }
 
-    fun editComment (cid: Int, noteId: Int, newText: String): Boolean{
-        val note = notes[noteId]
-        val commentsOfNote = note!!.comments
-        if (note!!.deleted== false) {
+    fun editComment ( noteId: Int,cid: Int, newText: String): Boolean{
+        val note = notes[noteId]?:throw NotesNotFoundException("заметка с id=$noteId не найдена")
+        val commentsOfNote = note.comments
+        var result = false
+        if (!note.deleted) {
             for ((index, value) in commentsOfNote.withIndex()) {
-                if (value.cid == cid) when (value.deleted) {
-                    false -> {
-                        commentsOfNote[index] = value.copy(text = newText)
-                        return true
-                    }
-                    true -> {
-                        throw CommentIsDeleted("комментарий удален")
-                        return false
+                if (value.cid == cid) {
+                    when (value.deleted) {
+                        false -> {
+                            commentsOfNote[index] = value.copy(text = newText)
+                            result= true
+                            break
+                        }
+                        true -> {
+                            throw CommentIsDeleted("комментарий удален")
+                        }
                     }
                 }
             }
+            return result
         }
         throw NoteIsDeleted ("заметка удалена")
-            return false
     }
 
     fun restoreComment (cid: Int, noteId: Int): Boolean{
-        val note = notes[noteId]
-        val commentsOfNote = note!!.comments
-        if (note!!.deleted== false) {
+        val note = notes[noteId]?:throw NotesNotFoundException("заметка с id=$noteId не найдена")
+        val commentsOfNote = note.comments
+        var result = false
+        if (!note.deleted) {
             for ((index, value) in commentsOfNote.withIndex()) {
-                if (value.cid == cid) when (value.deleted) {
-                    true -> {
-                        commentsOfNote[index] = value.copy(deleted = false)
-                        return true
+                if (value.cid == cid) {
+                    if  (value.deleted) {
+                            commentsOfNote[index] = value.copy(deleted = false)
+                            result = true
+                        break
+                        }
+                        }
                     }
-                    false -> {
-                        return false
-                    }
+            return result
                 }
-            }
-        }
         throw NoteIsDeleted ("заметка удалена")
-        return false
     }
     }
 
@@ -156,12 +151,25 @@ fun main (){
     service.add(0, "title", "Text", 1)
     service.add(0, "title2", "Text2", 1)
     service.add(0, "title3", "Text3", 1)
-    println (service.add(0, "title", "Text", 1))
+   println (service.add(0, "title0", "Text", 1))
     println(service.delete(1))
     service.delete(2)
     println(service.notes[2]?.deleted ?: "pfxtv&")
     println(service.getById(3))
     println(service.getById(1))
     println(service.edit(Notes(3,"title new","Text new",1)))
-    println(service.getById(13))
+    println(service.getById(3))
+    //println(service.getById(13))
+    service.createComment(3,"com1")
+    service.createComment(3,"com2")
+    service.createComment(3,"com3")
+    println(service.getById(3))
+    service.editComment(1,3,"new com")
+    println(service.getById(3))
+    service.deleteComment(3,3)
+    println(service.getById(3))
+    service.restoreComment(3,3)
+    println(service.getById(3))
+    service.restoreComment(3,3)
+    println(service.getById(3))
 }
