@@ -5,15 +5,6 @@ import org.junit.Assert.*
 class NotesServiceTest {
 
     @Test
-    fun getNotes() {
-
-    }
-
-    @Test
-    fun setNotes() {
-    }
-
-    @Test
     fun addSuccessful() {
         val service : NotesService = NotesService ()
         val expectedResult : Int = 1
